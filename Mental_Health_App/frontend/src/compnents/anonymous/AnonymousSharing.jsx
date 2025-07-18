@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '../navbar/Navbar';
+import './AnonymousSharing.css';
 
 const AnonymousSharing = () => {
     const user = localStorage.getItem('tokenUser');

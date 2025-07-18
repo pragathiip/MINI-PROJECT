@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Navbar from '../navbar/Navbar';
 import { useNavigate } from 'react-router-dom';
+import './AnonymousSharing.css';
 
 const AnonymousPost = () => {
   const [title, setTitle] = useState('');

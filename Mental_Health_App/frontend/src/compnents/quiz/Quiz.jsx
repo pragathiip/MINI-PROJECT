@@ -1,12 +1,61 @@
 import React, { useState } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import Loader from 'react-js-loader';
 import Navbar from '../navbar/Navbar';
 
+// Hugging Face Inference API configuration
+const HF_API_URL = 'https://api-inference.huggingface.co/models/gpt2';
+const HF_API_KEY = process.env.REACT_APP_HF_API_KEY;
 
+// Fallback analysis function
+const generateFallbackAnalysis = (answers) => {
+  const responses = answers.filter(answer => answer.trim() !== '');
 
-const API_KEY = process.env.REACT_APP_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
+  if (responses.length === 0) {
+    return "Thank you for taking the quiz. Please answer the questions to receive personalized insights.";
+  }
+
+  // Count concerning responses
+  const concerningCount = responses.filter(answer =>
+    answer.toLowerCase().includes('often') ||
+    answer.toLowerCase().includes('always') ||
+    answer.toLowerCase().includes('very') ||
+    answer.toLowerCase().includes('extremely')
+  ).length;
+
+  let analysis = "Mental Health Quiz Analysis:\n\n";
+
+  if (concerningCount >= 3) {
+    analysis += "Based on your responses, it appears you may be experiencing some challenges with your mental health. ";
+    analysis += "It's important to remember that seeking help is a sign of strength, not weakness.\n\n";
+    analysis += "Recommendations:\n";
+    analysis += "• Consider speaking with a mental health professional\n";
+    analysis += "• Practice daily mindfulness or meditation\n";
+    analysis += "• Maintain regular sleep and exercise routines\n";
+    analysis += "• Connect with supportive friends and family\n";
+    analysis += "• Consider journaling to process your thoughts and feelings";
+  } else if (concerningCount >= 1) {
+    analysis += "Your responses suggest you may be experiencing some mild stress or emotional challenges. ";
+    analysis += "This is completely normal, and there are many ways to support your mental wellness.\n\n";
+    analysis += "Suggestions:\n";
+    analysis += "• Practice stress-reduction techniques like deep breathing\n";
+    analysis += "• Engage in activities you enjoy\n";
+    analysis += "• Maintain social connections\n";
+    analysis += "• Consider talking to someone you trust about your feelings\n";
+    analysis += "• Focus on self-care and healthy habits";
+  } else {
+    analysis += "Your responses suggest you're managing well overall. ";
+    analysis += "Continue to prioritize your mental health and well-being.\n\n";
+    analysis += "Keep up the good work:\n";
+    analysis += "• Continue your current self-care practices\n";
+    analysis += "• Stay connected with your support system\n";
+    analysis += "• Be mindful of changes in your mood or stress levels\n";
+    analysis += "• Remember that it's okay to seek help if things change";
+  }
+
+  analysis += "\n\nRemember: This is a general assessment. For personalized advice, please consult with a qualified mental health professional.";
+
+  return analysis;
+};
 
 const questions = [
   "How often have you felt down, depressed, or hopeless in the past two weeks?",
@@ -50,20 +99,125 @@ const Quiz = () => {
 
   const handleSubmit = async () => {
     setLoading(true);
+
+    // Retry function for handling temporary API issues
+    const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await fn();
+        } catch (error) {
+          if (attempt === maxRetries) throw error;
+
+          // Check if it's a retryable error (503, 429, network issues)
+          const isRetryable = error.message?.includes('503') ||
+                             error.message?.includes('overloaded') ||
+                             error.message?.includes('429') ||
+                             error.message?.includes('rate limit') ||
+                             error.message?.includes('network') ||
+                             error.message?.includes('fetch');
+
+          if (!isRetryable) throw error;
+
+          const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+          console.log(`Quiz API attempt ${attempt} failed, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    };
+
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const prompt = `Analyze the following mental health quiz answers and generate a short summary regarding the persons mental health and what can he do, use points and headings and generate answer separated by paragraphs, also give a space between different paragraphs:\n\n${questions.map((q, i) => `${i+1}. ${q} ${answers[i]}`).join('\n')}`;
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      let text = await response.text();
-  
+      const generateAnalysis = async () => {
+        if (!HF_API_KEY || HF_API_KEY === 'your_huggingface_api_key_here') {
+          throw new Error('API_KEY_NOT_CONFIGURED');
+        }
+
+        const prompt = `Analyze the following mental health quiz answers and provide a supportive summary with practical suggestions:
+
+${questions.map((q, i) => `${i+1}. ${q} ${answers[i]}`).join('\n')}
+
+Mental Health Analysis:`;
+
+        const response = await fetch(HF_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${HF_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: 150,
+              temperature: 0.7,
+              do_sample: true,
+              top_p: 0.9,
+              repetition_penalty: 1.1,
+              return_full_text: false
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Error Response:', errorText);
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+
+        // Handle different response formats from Hugging Face
+        let generatedText = '';
+        if (Array.isArray(data) && data[0]?.generated_text) {
+          generatedText = data[0].generated_text;
+        } else if (data.generated_text) {
+          generatedText = data.generated_text;
+        } else {
+          throw new Error('Unexpected response format from Hugging Face API');
+        }
+
+        // Extract only the analysis part (remove the prompt)
+        const analysisResponse = generatedText.split('Mental Health Analysis:')[1]?.trim() || generatedText;
+
+        return analysisResponse;
+      };
+
+      let text = await retryWithBackoff(generateAnalysis);
+
       // Replace **word** with <strong>word</strong>
       text = text.replace(/\*\*(.*?)\*\*/g, '$1');
-  
+
       setResult(text);
     } catch (error) {
       console.error('Error analyzing answers:', error);
-      setResult('An error occurred while analyzing the answers.');
+
+      // Try to provide fallback analysis
+      try {
+        const fallbackResult = generateFallbackAnalysis(answers);
+        setResult(fallbackResult);
+        setLoading(false);
+        return;
+      } catch (fallbackError) {
+        console.error('Fallback analysis also failed:', fallbackError);
+      }
+
+      let errorMessage = 'An error occurred while analyzing the answers.';
+
+      if (error.message === 'API_KEY_NOT_CONFIGURED') {
+        errorMessage = '🔑 Quiz analysis is not configured. Please set up your Hugging Face API key in the .env file to enable this feature.\n\nTo get an API key:\n1. Visit https://huggingface.co/settings/tokens\n2. Create a new API key (Read access is sufficient)\n3. Add it to the .env file as REACT_APP_HF_API_KEY=your_key_here\n4. Restart the application';
+      } else if (error.message?.includes('503') || error.message?.includes('overloaded') || error.message?.includes('Service Unavailable')) {
+        errorMessage = '🔄 Hugging Face service is temporarily overloaded. This is a temporary issue.\n\n💡 The system automatically retried 3 times. Please wait a moment and try submitting again.\n\nTechnical details: ' + error.message;
+      } else if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+        errorMessage = '⏱️ Rate limit exceeded. Please wait a moment before submitting again.\n\nTechnical details: ' + error.message;
+      } else if (error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('Invalid API key')) {
+        errorMessage = '🔑 Invalid API key. Please check your Hugging Face API key configuration.\n\nTechnical details: ' + error.message;
+      } else if (error.message?.includes('quota') || error.message?.includes('limit') || error.message?.includes('exceeded')) {
+        errorMessage = '⚠️ API quota exceeded. Please check your Hugging Face usage limits.\n\nTechnical details: ' + error.message;
+      } else if (error.message?.includes('network') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
+        errorMessage = '🌐 Network error. Please check your internet connection and try again.\n\nTechnical details: ' + error.message;
+      } else {
+        errorMessage = `❌ Unexpected error occurred.\n\nTechnical details: ${error.message}\n\nPlease check the browser console for more details.`;
+      }
+
+      setResult(errorMessage);
     } finally {
       setLoading(false);
     }

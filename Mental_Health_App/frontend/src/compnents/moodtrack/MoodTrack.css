@@ -1,0 +1,5 @@
+/* Soft therapeutic background for Mood Tracker page */
+body {
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 20%, #f3e8ff 40%, #fef3c7 60%, #ecfdf5 80%, #fdf2f8 100%);
+  min-height: 100vh;
+}

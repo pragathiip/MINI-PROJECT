@@ -1,5 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Rubik:wght@400;500&display=swap");
 
+/* Soft therapeutic background for Quiz page */
+body {
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 20%, #f3e8ff 40%, #fef3c7 60%, #ecfdf5 80%, #fdf2f8 100%) !important;
+  min-height: 100vh;
+}
+
 :root {
   --Purple: #a729f5;
   --Pure-White: #ffffff;

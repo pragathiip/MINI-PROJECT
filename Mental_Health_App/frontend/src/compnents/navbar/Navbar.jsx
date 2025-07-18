@@ -87,7 +87,7 @@ const Navbar = () => {
           </div>
           <div className="hidden lg:flex lg:gap-x-12">
             <a href={`/${user}/mood`} className="text-sm font-semibold leading-6 text-gray-900">Mood Tracker</a>
-            <a href={`/${user}/therapist`} className="text-sm font-semibold leading-6 text-gray-900">AI Therapist</a>
+            <a href={`/${user}/therapist`} className="text-sm font-semibold leading-6 text-gray-900">Sound Therapy</a>
             <a href={`/${user}/quiz`} className="text-sm font-semibold leading-6 text-gray-900">Quiz</a>
             <a href={`/${user}/anonymoussharing`} className="text-sm font-semibold leading-6 text-gray-900">Anonymous Sharing</a>
           </div>
@@ -148,7 +148,7 @@ const Navbar = () => {
                   <div className="space-y-2 py-6">
 
                     <a href={`/${user}/mood`} className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Mood Tracker</a>
-                    <a href={`/${user}/therapist`} className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">AI Therapist</a>
+                    <a href={`/${user}/therapist`} className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Sound Therapy</a>
                     <a href={`/${user}/quiz`} className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Quiz</a>
                     <a href={`/${user}/anonymoussharing`} className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">Anonymous Sharing</a>
                   </div>
